@@ -98,3 +98,5 @@ class MRNNHiddenLayer:
         else:
             Y = self.YActivation(T.dot(out, Wy))
         return [Ss, Y]
+#tree and w
+#ween the w
