@@ -43,3 +43,13 @@ class DataHelper():
             self.StartIdx = (self.StartIdx + 1) % self.AllChars.__len__()
         output = self.AllCharsIdx[(self.StartIdx + length - 1) % self.AllChars.__len__()]
         return [subData, output]
+
+        # if self.StartIdx + length > self.AllCharsIdx.__len__():
+        #     subData = self.AllCharsIdx[self.StartIdx : self.AllCharsIdx.__len__()]
+        #     subData.extend(self.AllCharsIdx[0 : length - (self.AllCharsIdx.__len__() - self.StartIdx)])
+        #     self.StartIdx = (self.StartIdx + length) % self.AllCharsIdx.__len__()
+        # else:
+        #     subData = self.AllCharsIdx[self.StartIdx : self.StartIdx + length]
+        #     self.StartIdx = (self.StartIdx + length) % self.AllCharsIdx.__len__()
+        # output = self.AllCharsIdx[self.StartIdx]
+        # return [subData, output]
