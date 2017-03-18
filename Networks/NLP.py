@@ -12,8 +12,8 @@ TRUNCATE = 10
 
 # TRAINING PARAMETERS
 NUM_ITERATION = 1000000
-UPDATE_LEARNING_RATE = 50000
-LEARNING_RATE = 0.01
+UPDATE_LEARNING_RATE = 200000
+LEARNING_RATE = 0.0001
 
 VISUALIZE_FREQUENCY = 1000
 TEST_FREQUENCY      = 10000
@@ -25,9 +25,9 @@ def generateString(rnnModel):
     global Dataset
     print ('Generate a random string...')
 
-    initState = numpy.ones(
-        shape=(NUM_LAYERS, NUM_HIDDEN),
-        dtype=theano.config.floatX
+    initState = numpy.zeros(
+        shape = (NUM_LAYERS, NUM_HIDDEN),
+        dtype = theano.config.floatX
     )
     SState = initState
 
@@ -35,8 +35,9 @@ def generateString(rnnModel):
     startStringIdx = [Dataset.CharacterToIdx[char] for char in startString]
     for i in range(200):
         result = rnnModel.PredictFunc(startStringIdx[-TRUNCATE:], SState)
-        charIdx = result[0]
-        SState = numpy.asarray(result[1:], dtype=theano.config.floatX)
+        p = result[0]
+        SState = numpy.asarray(result[1:], dtype = theano.config.floatX)
+        charIdx = numpy.argmax(p)
         startString = startString + Dataset.IdxToCharacter[charIdx]
         startStringIdx.append(charIdx)
     print ('Generate string: %s' % (startString))
@@ -73,7 +74,7 @@ def NLP():
     epoch = 0
     trainCost = []
     dynamicLearning = LEARNING_RATE
-    initState = numpy.ones(
+    initState = numpy.zeros(
         shape = (NUM_LAYERS, NUM_HIDDEN),
         dtype = theano.config.floatX
     )
@@ -98,7 +99,7 @@ def NLP():
         [subData, out] = Dataset.NextBatch(TRUNCATE)
         result = rnnModel.TrainFunc(subData, [out], dynamicLearning, SState)
         cost = result[0]
-        SState = numpy.asarray(result[1:], dtype=theano.config.floatX)
+        SState = numpy.asarray(result[1:], dtype = theano.config.floatX)
         trainCost.append(cost)
 
 
