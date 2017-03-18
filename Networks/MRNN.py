@@ -24,6 +24,7 @@ class MRNN:
     def createMRNN(self):
         # Save shared parameters
         self.Params = None
+        self.ParamsLayers = []
 
         # Create RNN model
         self.HiddenLayers = []
@@ -57,6 +58,7 @@ class MRNN:
                         params      = self.Params,
                         sActivation = self.Activation
                     )
+            self.ParamsLayers.append(hiddenLayer.Params)
             self.HiddenLayers.append(hiddenLayer)
 
         # Create train model
@@ -66,30 +68,32 @@ class MRNN:
         SState = T.matrix('SState', dtype = theano.config.floatX)
 
         # Feed-forward
+        firstState = None
         S = SState
         for idx, layer in enumerate(self.HiddenLayers):
-            if (idx == 1):
-                secondState = S
             [S, Yp] = layer.FeedForward(S, X[idx])
+            if (idx == 0):
+                firstState = S
 
         # Calculate cost | error function
-        predict = T.argmax(Yp)
+        predict = Yp
         cost = CrossEntropy(Yp, Y)
 
         # Get params and calculate gradients
-        grads  = T.grad(cost, self.Params)
+        grads  = [T.grad(cost, paramsLayer) for paramsLayer in self.ParamsLayers]
+        finalGrads = numpy.sum(grads, axis = 0)
         updates = [(param, param - LearningRate * grad)
-                   for (param, grad) in zip(self.Params, grads)]
+                   for (param, grad) in zip(self.Params, finalGrads)]
 
         self.TrainFunc = theano.function(
             inputs  = [X, Y, LearningRate, SState],
-            outputs = [cost] + secondState,
+            outputs = [cost] + firstState,
             updates = updates,
         )
 
         self.PredictFunc = theano.function(
             inputs  = [X, SState],
-            outputs = [predict] + secondState
+            outputs = [predict] + firstState
         )
 
 
