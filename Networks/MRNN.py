@@ -3,6 +3,10 @@ import cPickle
 from Layers.MRNNHiddenLayer import *
 from Utils.CostFHelper import *
 
+BETA1 = 0.9
+BETA2 = 0.999
+DELTA = 0.00000001
+
 class MRNN:
     def __init__(self,
                  rng,
@@ -10,6 +14,7 @@ class MRNN:
                  numHidden,
                  numLayers,
                  truncate,
+                 batchSize,
                  activation = T.tanh):
         # Set parameters
         self.Rng = rng
@@ -17,6 +22,7 @@ class MRNN:
         self.NumHidden = numHidden
         self.NumLayers = numLayers
         self.Truncate = truncate
+        self.BatchSize = batchSize
         self.Activation = activation
 
         self.createMRNN()
@@ -63,37 +69,47 @@ class MRNN:
 
         # Create train model
         X = T.ivector('X')
+        X2D = X.reshape((self.BatchSize, self.Truncate))
         Y = T.ivector('Y')
         LearningRate = T.fscalar('LearningRate')
         SState = T.matrix('SState', dtype = theano.config.floatX)
 
         # Feed-forward
-        firstState = None
         S = SState
         for idx, layer in enumerate(self.HiddenLayers):
             [S, Yp] = layer.FeedForward(S, X[idx])
-            if (idx == 0):
-                firstState = S
 
         # Calculate cost | error function
         predict = Yp
         cost = CrossEntropy(Yp, Y)
 
-        # Get params and calculate gradients
-        grads  = [T.grad(cost, paramsLayer) for paramsLayer in self.ParamsLayers]
-        finalGrads = numpy.sum(grads, axis = 0)
-        updates = [(param, param - LearningRate * grad)
-                   for (param, grad) in zip(self.Params, finalGrads)]
+        # Get params and calculate gradients - Adam method
+        grads = T.grad(cost, self.Params)
+        updates = []
+        for (param, grad) in zip(self.Params, grads):
+            mt = theano.shared(param.get_value() * 0., broadcastable=param.broadcastable)
+            vt = theano.shared(param.get_value() * 0., broadcastable=param.broadcastable)
+
+            newMt = BETA1 * mt + (1 - BETA1) * grad
+            newVt = BETA2 * vt + (1 - BETA2) * T.sqr(grad)
+
+            tempMt = newMt / (1 - BETA1)
+            tempVt = newVt / (1 - BETA2)
+
+            step = - LearningRate * tempMt / (T.sqrt(tempVt) + DELTA)
+            updates.append((mt, newMt))
+            updates.append((vt, newVt))
+            updates.append((param, (param + step).clip(a_min = -1.0, a_max = 1.0)))
 
         self.TrainFunc = theano.function(
             inputs  = [X, Y, LearningRate, SState],
-            outputs = [cost] + firstState,
+            outputs = [cost],
             updates = updates,
         )
 
         self.PredictFunc = theano.function(
             inputs  = [X, SState],
-            outputs = [predict] + firstState
+            outputs = [predict]
         )
 
 
