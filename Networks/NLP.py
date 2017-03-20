@@ -2,21 +2,22 @@ import os.path
 from Utils.DataHelper import DataHelper
 from MRNN import *
 
-DATASET_NAME = '../Data/Harry Potter and the Sorcerers Stone.txt'
+DATASET_NAME = '../Data/tiny.txt'
 SAVE_PATH = '../Pretrained/model.pkl'
 
 # NETWORK PARAMATERS
-NUM_HIDDEN = 120
+NUM_HIDDEN = 500
 NUM_LAYERS = 3
-TRUNCATE = 10
+TRUNCATE = 15
+BATCH_SIZE = 10
 
 # TRAINING PARAMETERS
 NUM_ITERATION = 1000000
 UPDATE_LEARNING_RATE = 200000
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.001
 
 VISUALIZE_FREQUENCY = 1000
-TEST_FREQUENCY      = 10000
+TEST_FREQUENCY      = 5000
 
 # GLOBAL VARIABLES
 Dataset = None
@@ -31,12 +32,11 @@ def generateString(rnnModel):
     )
     SState = initState
 
-    startString = 'There is a sheep on a tree and'
+    startString = 'We are accounted po'
     startStringIdx = [Dataset.CharacterToIdx[char] for char in startString]
-    for i in range(200):
+    for i in range(50):
         result = rnnModel.PredictFunc(startStringIdx[-TRUNCATE:], SState)
         p = result[0]
-        SState = numpy.asarray(result[1:], dtype = theano.config.floatX)
         charIdx = numpy.argmax(p)
         startString = startString + Dataset.IdxToCharacter[charIdx]
         startStringIdx.append(charIdx)
@@ -45,7 +45,6 @@ def generateString(rnnModel):
 def loadData():
     global Dataset
     Dataset = DataHelper(DATASET_NAME)
-
 
 def NLP():
     global Dataset
@@ -59,6 +58,7 @@ def NLP():
         numHidden  = NUM_HIDDEN,
         numLayers  = NUM_LAYERS,
         truncate   = TRUNCATE,
+        batchSize=BATCH_SIZE,
         activation = T.tanh
     )
 
@@ -80,9 +80,6 @@ def NLP():
     )
     SState = initState
     for iter in range(NUM_ITERATION):
-        if iter % UPDATE_LEARNING_RATE == 0:
-            dynamicLearning /= 2.0
-
         # Calculate cost of validation set every VALIDATION_FREQUENCY iter
         if iter % TEST_FREQUENCY == 0:
             generateString(rnnModel)
@@ -99,9 +96,7 @@ def NLP():
         [subData, out] = Dataset.NextBatch(TRUNCATE)
         result = rnnModel.TrainFunc(subData, [out], dynamicLearning, SState)
         cost = result[0]
-        SState = numpy.asarray(result[1:], dtype = theano.config.floatX)
         trainCost.append(cost)
-
 
     # Load model and test
     if os.path.isfile(SAVE_PATH):
