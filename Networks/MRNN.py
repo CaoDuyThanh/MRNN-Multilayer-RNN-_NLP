@@ -41,47 +41,41 @@ class MRNN:
                     numIn      = self.NumIn,
                     numHidden  = self.NumHidden,
                     numLayers  = self.NumLayers,
-                    sActivation = self.Activation
+                    sActivation = self.Activation,
+                    yActivation = T.nnet.softmax
                 )
                 self.Params = hiddenLayer.Params
             else:
-                if layerId == self.Truncate - 1:
-                    hiddenLayer = MRNNHiddenLayer(
-                        rng         = self.Rng,
-                        numIn       = self.NumIn,
-                        numHidden   = self.NumHidden,
-                        numLayers   = self.NumLayers,
-                        params      = self.Params,
-                        sActivation = self.Activation,
-                        yActivation = T.nnet.softmax
-                    )
-                else:
-                    hiddenLayer = MRNNHiddenLayer(
-                        rng         = self.Rng,
-                        numIn       = self.NumIn,
-                        numHidden   = self.NumHidden,
-                        numLayers   = self.NumLayers,
-                        params      = self.Params,
-                        sActivation = self.Activation
-                    )
+                hiddenLayer = MRNNHiddenLayer(
+                    rng         = self.Rng,
+                    numIn       = self.NumIn,
+                    numHidden   = self.NumHidden,
+                    numLayers   = self.NumLayers,
+                    params      = self.Params,
+                    sActivation = self.Activation,
+                    yActivation = T.nnet.softmax
+                )
             self.ParamsLayers.append(hiddenLayer.Params)
             self.HiddenLayers.append(hiddenLayer)
 
         # Create train model
         X = T.ivector('X')
-        X2D = X.reshape((self.BatchSize, self.Truncate))
         Y = T.ivector('Y')
         LearningRate = T.fscalar('LearningRate')
-        SState = T.matrix('SState', dtype = theano.config.floatX)
+        InitState = numpy.zeros(
+                    shape = (self.NumLayers, self.NumHidden),
+                    dtype = theano.config.floatX
+                 )
 
         # Feed-forward
-        S = SState
+        Yps = []
+        SState = InitState
         for idx, layer in enumerate(self.HiddenLayers):
-            [S, Yp] = layer.FeedForward(S, X[idx])
+            [SState, Yp] = layer.FeedForward(SState, X[idx])
+            Yps.append(Yp)
 
         # Calculate cost | error function
-        predict = Yp
-        cost = CrossEntropy(Yp, Y)
+        cost = CrossEntropy(Yps, Y)
 
         # Get params and calculate gradients - Adam method
         grads = T.grad(cost, self.Params)
@@ -99,19 +93,36 @@ class MRNN:
             step = - LearningRate * tempMt / (T.sqrt(tempVt) + DELTA)
             updates.append((mt, newMt))
             updates.append((vt, newVt))
-            updates.append((param, (param + step).clip(a_min = -1.0, a_max = 1.0)))
+            updates.append((param, param + step.clip(a_min = -5.0, a_max = 5.0)))
 
         self.TrainFunc = theano.function(
-            inputs  = [X, Y, LearningRate, SState],
+            inputs  = [X, Y, LearningRate],
             outputs = [cost],
             updates = updates,
         )
 
+        State = T.matrix('State', dtype = 'float32')
+        newState, Yp = self.HiddenLayers[-1].FeedForward(State, X[0])
         self.PredictFunc = theano.function(
-            inputs  = [X, SState],
-            outputs = [predict]
+            inputs  = [State, X],
+            outputs = [Yp] + newState
         )
 
+    def Generate(self, length, x):
+        SState = numpy.zeros(
+                    shape=(self.NumLayers, self.NumHidden),
+                    dtype=theano.config.floatX
+        )
+
+        # Feed-forward
+        genStringIdx = [x]
+        for idx in range(length):
+            result = self.PredictFunc(SState, [x])
+            Yp     = result[0]
+            SState = numpy.asarray(result[1:], dtype = 'float32')
+            x = numpy.random.choice(range(self.NumIn), p=Yp[0])
+            genStringIdx.append(x)
+        return genStringIdx
 
     def LoadModel(self, file):
         [param.set_value(cPickle.load(file), borrow = True) for param in self.Params]
