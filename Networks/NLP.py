@@ -6,18 +6,18 @@ DATASET_NAME = '../Data/tiny.txt'
 SAVE_PATH = '../Pretrained/model.pkl'
 
 # NETWORK PARAMATERS
-NUM_HIDDEN = 500
-NUM_LAYERS = 3
-TRUNCATE = 15
+NUM_HIDDEN = 200
+NUM_LAYERS = 1
+TRUNCATE = 25
 BATCH_SIZE = 10
 
 # TRAINING PARAMETERS
 NUM_ITERATION = 1000000
 UPDATE_LEARNING_RATE = 200000
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.01
 
 VISUALIZE_FREQUENCY = 1000
-TEST_FREQUENCY      = 5000
+TEST_FREQUENCY      = 10000
 
 # GLOBAL VARIABLES
 Dataset = None
@@ -25,22 +25,13 @@ Dataset = None
 def generateString(rnnModel):
     global Dataset
     print ('Generate a random string...')
+    print ('-----------------------------------------------------------------------------')
+    start = numpy.random.choice(range(Dataset.NumChars))
+    generatedStringIdx = rnnModel.Generate(200, start)
+    generatedString = ''.join([Dataset.IdxToCharacter[charIdx] for charIdx in generatedStringIdx])
+    print ('%s' % (generatedString))
+    print ('-----------------------------------------------------------------------------')
 
-    initState = numpy.zeros(
-        shape = (NUM_LAYERS, NUM_HIDDEN),
-        dtype = theano.config.floatX
-    )
-    SState = initState
-
-    startString = 'We are accounted po'
-    startStringIdx = [Dataset.CharacterToIdx[char] for char in startString]
-    for i in range(50):
-        result = rnnModel.PredictFunc(startStringIdx[-TRUNCATE:], SState)
-        p = result[0]
-        charIdx = numpy.argmax(p)
-        startString = startString + Dataset.IdxToCharacter[charIdx]
-        startStringIdx.append(charIdx)
-    print ('Generate string: %s' % (startString))
 
 def loadData():
     global Dataset
@@ -74,12 +65,11 @@ def NLP():
     epoch = 0
     trainCost = []
     dynamicLearning = LEARNING_RATE
-    initState = numpy.zeros(
-        shape = (NUM_LAYERS, NUM_HIDDEN),
-        dtype = theano.config.floatX
-    )
-    SState = initState
     for iter in range(NUM_ITERATION):
+        if (iter % VISUALIZE_FREQUENCY == 0):
+            print ('Epoch = %d, iteration =  %d, cost = %f ' % (epoch, iter, numpy.mean(trainCost)))
+            trainCost = []
+
         # Calculate cost of validation set every VALIDATION_FREQUENCY iter
         if iter % TEST_FREQUENCY == 0:
             generateString(rnnModel)
@@ -88,13 +78,9 @@ def NLP():
             rnnModel.SaveModel(file)
             file.close()
 
-        if (iter % VISUALIZE_FREQUENCY == 0):
-            print ('Epoch = %d, iteration =  %d, cost = %f ' % (epoch, iter, numpy.mean(trainCost)))
-            trainCost = []
-
         # Training state
-        [subData, out] = Dataset.NextBatch(TRUNCATE)
-        result = rnnModel.TrainFunc(subData, [out], dynamicLearning, SState)
+        [subData, target] = Dataset.NextBatch(TRUNCATE)
+        result = rnnModel.TrainFunc(subData, target, dynamicLearning)
         cost = result[0]
         trainCost.append(cost)
 
