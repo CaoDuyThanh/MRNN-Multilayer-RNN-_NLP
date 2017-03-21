@@ -25,11 +25,10 @@ class MRNNHiddenLayer:
 
     def createModel(self):
         if self.Params is None:
-            inputs = []
-            inputsBias = []
+            Wxs = []
             Whhs = []
-            WhhsBias = []
-            outputs = []
+            Wys = []
+            hiddensBias = []
             outputsBias = []
             for layerId in range(self.NumLayers):
                 if (layerId == 0):
@@ -50,16 +49,7 @@ class MRNNHiddenLayer:
                     borrow = True,
                     name   = 'Wx_layer%d' % (layerId)
                 )
-                WxBias = theano.shared(
-                    numpy.zeros(
-                        shape = (self.NumHidden, ),
-                        dtype = theano.config.floatX
-                    ),
-                    borrow = True,
-                    name   = 'WxBias_layer%d' % (layerId)
-                )
-                inputs.append(Wx)
-                inputsBias.append(WxBias)
+                Wxs.append(Wx)
 
                 # Init Whh
                 wBound = numpy.sqrt(6.0 / (self.NumHidden + self.NumHidden))
@@ -75,15 +65,17 @@ class MRNNHiddenLayer:
                     name   = 'Whh_layer%d' % (layerId)
                 )
                 Whhs.append(Whh)
-                WhhBias = theano.shared(
+
+                # Init hidden bias
+                hiddenBias = theano.shared(
                     numpy.zeros(
-                        shape = (self.NumHidden, ),
-                        dtype = theano.config.floatX
+                        shape=(self.NumHidden,),
+                        dtype=theano.config.floatX
                     ),
-                    borrow = True,
-                    name   = 'WhhBias_layer%d' % (layerId)
+                    borrow=True,
+                    name='WxBias_layer%d' % (layerId)
                 )
-                WhhsBias.append(WhhBias)
+                hiddensBias.append(hiddenBias)
             # Init Wy - output
             wBound = numpy.sqrt(6.0 / (self.NumHidden + self.NumIn))
             Wy = theano.shared(
@@ -97,7 +89,7 @@ class MRNNHiddenLayer:
                 borrow = True,
                 name   = 'Wy'
             )
-            outputs.append(Wy)
+            Wys.append(Wy)
             WyBias = theano.shared(
                 numpy.zeros(
                     shape = (self.NumIn, ),
@@ -108,26 +100,24 @@ class MRNNHiddenLayer:
             )
             outputsBias.append(WyBias)
 
-            self.Params = inputs + \
-                          inputsBias + \
+            self.Params = Wxs + \
                           Whhs + \
-                          WhhsBias + \
-                          outputs + \
+                          hiddensBias + \
+                          Wys + \
                           outputsBias
 
     def FeedForward(self, Skm1, Xk):
         Ss = []
         for layerId in range(self.NumLayers):
-            Wx      = self.Params[layerId]
-            WxBias  = self.Params[layerId + self.NumLayers]
-            Whh     = self.Params[layerId + self.NumLayers * 2]
-            WhhBias = self.Params[layerId + self.NumLayers * 3]
+            Wx         = self.Params[layerId]
+            Whh        = self.Params[layerId + self.NumLayers]
+            hiddenBias = self.Params[layerId + self.NumLayers * 2]
 
             if layerId == 0:
-                S = self.SActivation(Wx[Xk] + WxBias  + T.dot(Skm1[layerId], Whh) + WhhBias)
+                S = self.SActivation(Wx[Xk] + T.dot(Skm1[layerId], Whh) + hiddenBias)
                 Ss.append(S)
             else:
-                S = self.SActivation(T.dot(Ss[layerId - 1], Wx) + WxBias + T.dot(Skm1[layerId], Whh) + WhhBias)
+                S = self.SActivation(T.dot(Ss[layerId - 1], Wx) + T.dot(Skm1[layerId], Whh) + hiddenBias)
                 Ss.append(S)
         out    = Ss[-1]
         Wy     = self.Params[-2]
