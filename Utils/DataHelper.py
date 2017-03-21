@@ -11,11 +11,7 @@ class DataHelper():
 
     def loadData(self):
         print ('Read dataset from disk! File name = %s' % (self.FileName))
-        self.AllChars = []
-        with open(self.FileName) as file:
-            reader = csv.reader(file, skipinitialspace = True, delimiter='|')
-            [self.AllChars.extend(x) for x in reader]
-            self.AllChars = (' ').join(self.AllChars)
+        self.AllChars = open(self.FileName, 'r').read()
         print ('Read data...Done! ')
 
 
@@ -41,7 +37,8 @@ class DataHelper():
         else:
             subData = self.AllCharsIdx[self.StartIdx : self.StartIdx + length]
             self.StartIdx = (self.StartIdx + 1) % self.AllChars.__len__()
-        output = self.AllCharsIdx[(self.StartIdx + length - 1) % self.AllChars.__len__()]
+        output = subData[1:]
+        output.append(self.AllCharsIdx[(self.StartIdx + length - 1) % self.AllChars.__len__()])
 
         return [subData, output]
 
