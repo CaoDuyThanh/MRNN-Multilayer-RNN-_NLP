@@ -9,8 +9,11 @@ def L2(W):
     return abs(W ** 2).sum()
 
 """ Cross entropy """
-def CrossEntropy(output, y):
-    return -T.mean(T.log(output)[T.arange(y.shape[0]), y])
+def CrossEntropy(yps, ys):
+    cost = []
+    for idx in range(yps.__len__()):
+        cost.append(T.log(yps[idx][0, ys[idx]]))
+    return -T.sum(cost)
 
 """ Category entropy """
 def CategoryEntropy(output, y):
