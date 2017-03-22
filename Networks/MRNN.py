@@ -62,17 +62,17 @@ class MRNN:
         X = T.ivector('X')
         Y = T.ivector('Y')
         LearningRate = T.fscalar('LearningRate')
-        InitState = numpy.zeros(
-                    shape = (self.NumLayers, self.NumHidden),
-                    dtype = theano.config.floatX
-                 )
+        SState = T.matrix('SState', dtype = 'float32')   # Start state
 
         # Feed-forward
         Yps = []
-        SState = InitState
+        State = SState
+        finalState = None
         for idx, layer in enumerate(self.HiddenLayers):
-            [SState, Yp] = layer.FeedForward(SState, X[idx])
+            [State, Yp] = layer.FeedForward(State, X[idx])
             Yps.append(Yp)
+            if idx == self.Truncate - 1:
+                finalState = State
 
         # Calculate cost | error function
         cost = CrossEntropy(Yps, Y)
@@ -98,28 +98,28 @@ class MRNN:
             updates.append((param, param + step))
 
         self.TrainFunc = theano.function(
-            inputs  = [X, Y, LearningRate],
-            outputs = [cost],
+            inputs  = [X, Y, LearningRate, SState],
+            outputs = [cost] + finalState,
             updates = updates,
         )
 
-        State = T.matrix('State', dtype = 'float32')
-        newState, Yp = self.HiddenLayers[-1].FeedForward(State, X[0])
+        newState, Yp = self.HiddenLayers[-1].FeedForward(SState, X[0])
         self.PredictFunc = theano.function(
-            inputs  = [State, X],
+            inputs  = [X, SState],
             outputs = [Yp] + newState
         )
 
     def Generate(self, length, x):
-        SState = numpy.zeros(
+        InitState = numpy.zeros(
                     shape=(self.NumLayers, self.NumHidden),
                     dtype=theano.config.floatX
         )
 
         # Feed-forward
         genStringIdx = [x]
+        SState = InitState
         for idx in range(length):
-            result = self.PredictFunc(SState, [x])
+            result = self.PredictFunc([x], SState)
             Yp     = result[0]
             SState = numpy.asarray(result[1:], dtype = 'float32')
             x = numpy.random.choice(range(self.NumIn), p=Yp[0])
