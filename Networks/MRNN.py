@@ -84,8 +84,10 @@ class MRNN:
             mt = theano.shared(param.get_value() * 0., broadcastable=param.broadcastable)
             vt = theano.shared(param.get_value() * 0., broadcastable=param.broadcastable)
 
-            newMt = BETA1 * mt + (1 - BETA1) * grad
-            newVt = BETA2 * vt + (1 - BETA2) * T.sqr(grad)
+            clipGrad = grad.clip(a_min = -1.0, a_max = 1.0)
+
+            newMt = BETA1 * mt + (1 - BETA1) * clipGrad
+            newVt = BETA2 * vt + (1 - BETA2) * T.sqr(clipGrad)
 
             tempMt = newMt / (1 - BETA1)
             tempVt = newVt / (1 - BETA2)
@@ -93,7 +95,7 @@ class MRNN:
             step = - LearningRate * tempMt / (T.sqrt(tempVt) + DELTA)
             updates.append((mt, newMt))
             updates.append((vt, newVt))
-            updates.append((param, param + step.clip(a_min = -5.0, a_max = 5.0)))
+            updates.append((param, param + step))
 
         self.TrainFunc = theano.function(
             inputs  = [X, Y, LearningRate],
