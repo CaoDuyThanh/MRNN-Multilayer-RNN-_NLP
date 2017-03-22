@@ -2,19 +2,18 @@ import os.path
 from Utils.DataHelper import DataHelper
 from MRNN import *
 
-DATASET_NAME = '../Data/tiny.txt'
+DATASET_NAME = '../Data/The lord of the rings.txt'
 SAVE_PATH = '../Pretrained/model.pkl'
 
 # NETWORK PARAMATERS
-NUM_HIDDEN = 200
+NUM_HIDDEN = 500
 NUM_LAYERS = 1
 TRUNCATE = 25
 BATCH_SIZE = 10
 
 # TRAINING PARAMETERS
-NUM_ITERATION = 1000000
-UPDATE_LEARNING_RATE = 200000
-LEARNING_RATE = 0.01
+NUM_EPOCH= 200
+LEARNING_RATE = 0.00001
 
 VISUALIZE_FREQUENCY = 1000
 TEST_FREQUENCY      = 10000
@@ -27,11 +26,10 @@ def generateString(rnnModel):
     print ('Generate a random string...')
     print ('-----------------------------------------------------------------------------')
     start = numpy.random.choice(range(Dataset.NumChars))
-    generatedStringIdx = rnnModel.Generate(200, start)
+    generatedStringIdx = rnnModel.Generate(1000, start)
     generatedString = ''.join([Dataset.IdxToCharacter[charIdx] for charIdx in generatedStringIdx])
     print ('%s' % (generatedString))
     print ('-----------------------------------------------------------------------------')
-
 
 def loadData():
     global Dataset
@@ -63,15 +61,17 @@ def NLP():
 
     # Gradient descent - early stopping
     epoch = 0
+    iter  = 0
     trainCost = []
     dynamicLearning = LEARNING_RATE
-    for iter in range(NUM_ITERATION):
+    while (epoch < NUM_EPOCH):
+        iter += 1
         if (iter % VISUALIZE_FREQUENCY == 0):
             print ('Epoch = %d, iteration =  %d, cost = %f ' % (epoch, iter, numpy.mean(trainCost)))
             trainCost = []
 
         # Calculate cost of validation set every VALIDATION_FREQUENCY iter
-        if iter % TEST_FREQUENCY == 0:
+        if iter % TEST_FREQUENCY == 1:
             generateString(rnnModel)
 
             file = open(SAVE_PATH, 'wb')
@@ -87,7 +87,7 @@ def NLP():
     # Load model and test
     if os.path.isfile(SAVE_PATH):
         file = open(SAVE_PATH)
-        rnnModel.LoadModel(SAVE_PATH)
+        rnnModel.LoadModel(file)
         file.close()
 
 
