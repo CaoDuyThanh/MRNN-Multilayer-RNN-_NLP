@@ -6,6 +6,8 @@ class DataHelper():
                  fileName):
         self.FileName = fileName
 
+        self.EpochTrain = 0
+
         self.loadData()
         self.parseData()
 
@@ -30,24 +32,12 @@ class DataHelper():
         self.StartIdx = 0
 
     def NextBatch(self, length):
-        if self.StartIdx + length > self.AllCharsIdx.__len__():
-            subData = self.AllCharsIdx[self.StartIdx : self.AllCharsIdx.__len__()]
-            subData.extend(self.AllCharsIdx[0 : length - (self.AllCharsIdx.__len__() - self.StartIdx)])
-            self.StartIdx = (self.StartIdx + 1) % self.AllChars.__len__()
-        else:
-            subData = self.AllCharsIdx[self.StartIdx : self.StartIdx + length]
-            self.StartIdx = (self.StartIdx + 1) % self.AllChars.__len__()
-        output = subData[1:]
-        output.append(self.AllCharsIdx[(self.StartIdx + length - 1) % self.AllChars.__len__()])
+        if self.StartIdx + length + 1 >= self.AllCharsIdx.__len__():
+            self.StartIdx = 0
+            self.EpochTrain += 1
 
-        return [subData, output]
+        subData = self.AllCharsIdx[self.StartIdx : self.StartIdx + length]
+        output  = self.AllCharsIdx[self.StartIdx + 1 : self.StartIdx + length + 1]
+        self.StartIdx = self.StartIdx + length
 
-        # if self.StartIdx + length > self.AllCharsIdx.__len__():
-        #     subData = self.AllCharsIdx[self.StartIdx : self.AllCharsIdx.__len__()]
-        #     subData.extend(self.AllCharsIdx[0 : length - (self.AllCharsIdx.__len__() - self.StartIdx)])
-        #     self.StartIdx = (self.StartIdx + length) % self.AllCharsIdx.__len__()
-        # else:
-        #     subData = self.AllCharsIdx[self.StartIdx : self.StartIdx + length]
-        #     self.StartIdx = (self.StartIdx + length) % self.AllCharsIdx.__len__()
-        # output = self.AllCharsIdx[self.StartIdx]
-        # return [subData, output]
+        return [subData, output, self.EpochTrain]
