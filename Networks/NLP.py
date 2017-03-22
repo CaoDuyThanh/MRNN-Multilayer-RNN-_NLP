@@ -2,7 +2,7 @@ import os.path
 from Utils.DataHelper import DataHelper
 from MRNN import *
 
-DATASET_NAME = '../Data/The lord of the rings.txt'
+DATASET_NAME = '../Data/tiny.txt'
 SAVE_PATH = '../Pretrained/model.pkl'
 
 # NETWORK PARAMATERS
@@ -13,7 +13,7 @@ BATCH_SIZE = 10
 
 # TRAINING PARAMETERS
 NUM_EPOCH= 200
-LEARNING_RATE = 0.00001
+LEARNING_RATE = 0.001
 
 VISUALIZE_FREQUENCY = 1000
 TEST_FREQUENCY      = 10000
@@ -59,7 +59,13 @@ def NLP():
         rnnModel.LoadModel(file)
         file.close()
 
-    # Gradient descent - early stopping
+    # Gradient descent
+    # Init start state
+    InitState = numpy.zeros(
+                    shape = (NUM_LAYERS, NUM_HIDDEN),
+                    dtype = theano.config.floatX
+                 )
+
     epoch = 0
     iter  = 0
     trainCost = []
@@ -79,9 +85,13 @@ def NLP():
             file.close()
 
         # Training state
-        [subData, target] = Dataset.NextBatch(TRUNCATE)
-        result = rnnModel.TrainFunc(subData, target, dynamicLearning)
-        cost = result[0]
+        [subData, target, currEpoch] = Dataset.NextBatch(TRUNCATE)
+        if iter == 1 or currEpoch > epoch:
+            State = InitState
+        epoch = currEpoch
+        result = rnnModel.TrainFunc(subData, target, dynamicLearning, State)
+        cost  = result[0]
+        State = numpy.asarray(result[1:], dtype = 'float32')
         trainCost.append(cost)
 
     # Load model and test
